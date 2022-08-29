@@ -7,6 +7,8 @@
 #include "stb_image.h"
 
 static bool global_windowDidResize = false;
+static UINT g_deskWidth = 0;
+static UINT g_deskHeight = 0;
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
@@ -144,7 +146,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 
             // #DoubleCursor-DXGI
 			IDXGIOutput* output = nullptr;
-			IDXGIOutput1* output1 = nullptr;
+			IDXGIOutput5* output5 = nullptr;
 
 			if (dxgiAdapter->EnumOutputs(0, &output) != DXGI_ERROR_NOT_FOUND)
 			{
@@ -156,14 +158,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 				text += L"\n";
 				OutputDebugString(text.c_str());
 
-				HRESULT h2 = output->QueryInterface(__uuidof(IDXGIOutput1), (void**)&output1);
+				HRESULT h2 = output->QueryInterface(IID_PPV_ARGS(&output5));
+                assert(SUCCEEDED(h2));
 
 				output->Release();
 			}
 			
+            const DXGI_FORMAT formats[]{
+                DXGI_FORMAT_B8G8R8A8_UNORM,
+                DXGI_FORMAT_R8G8B8A8_UNORM,
+                DXGI_FORMAT_R10G10B10A2_UNORM,
+            };
             //#21_CreateDuplicateOutput
-			output1->DuplicateOutput(d3d11Device, &outputDup);
-			output1->Release();
+			HRESULT hr5 = output5->DuplicateOutput1(d3d11Device,
+                0,
+                ARRAYSIZE(formats),
+                formats,
+                &outputDup);
+
+            if (FAILED(hr5))
+            {
+                HRESULT hError = hr5;
+                assert(false);
+            }
+
+			output5->Release();
 
 			DXGI_OUTDUPL_DESC odd;
 			outputDup->GetDesc(&odd);
@@ -172,7 +191,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 			sout << "Width :" << odd.ModeDesc.Width << "\n";
 			sout << "Height:" << odd.ModeDesc.Height << "\n";
 			OutputDebugStringA(sout.str().c_str());
-
 
             DXGI_ADAPTER_DESC adapterDesc;
             dxgiAdapter->GetDesc(&adapterDesc);
@@ -188,7 +206,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         DXGI_SWAP_CHAIN_DESC1 d3d11SwapChainDesc = {};
         d3d11SwapChainDesc.Width = 0; // use window width
         d3d11SwapChainDesc.Height = 0; // use window height
-        d3d11SwapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+        d3d11SwapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         d3d11SwapChainDesc.SampleDesc.Count = 1;
         d3d11SwapChainDesc.SampleDesc.Quality = 0;
         d3d11SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -289,12 +307,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     UINT offset;
     {
         float vertexData[] = { // x, y, u, v
-            -0.5f,  0.5f, 0.f, 0.f,
-             0.5f, -0.5f, 1.f, 1.f,
-            -0.5f, -0.5f, 0.f, 1.f,
-            -0.5f,  0.5f, 0.f, 0.f,
-             0.5f,  0.5f, 1.f, 0.f,
-             0.5f, -0.5f, 1.f, 1.f
+            -1.0f,  1.0f, 0.f, 0.f,
+             1.0f, -1.0f, 1.f, 1.f,
+            -1.0f, -1.0f, 0.f, 1.f,
+            -1.0f,  1.0f, 0.f, 0.f,
+             1.0f,  1.0f, 1.f, 0.f,
+             1.0f, -1.0f, 1.f, 1.f
         };
         stride = 4 * sizeof(float);
         numVerts = sizeof(vertexData) / stride;
@@ -328,11 +346,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     d3d11Device->CreateSamplerState(&samplerDesc, &samplerState);
 
     // Load Image
-    int texWidth, texHeight, texNumChannels;
+    UINT texWidth = 1920;
+    UINT texHeight = 1080;
+    UINT texNumChannels = 0;
     int texForceNumChannels = 4;
-    unsigned char* testTextureBytes = stbi_load("testTexture.png", &texWidth, &texHeight,
-                                                &texNumChannels, texForceNumChannels);
-    assert(testTextureBytes);
+    //unsigned char* testTextureBytes = stbi_load("testTexture.png", &texWidth, &texHeight,
+    //                                            &texNumChannels, texForceNumChannels);
+    //assert(testTextureBytes);
     int texBytesPerRow = 4 * texWidth;
 
     // Create Texture
@@ -342,22 +362,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     textureDesc.Height             = texHeight;
     textureDesc.MipLevels          = 1;
     textureDesc.ArraySize          = 1;
-    textureDesc.Format             = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    textureDesc.Format             = DXGI_FORMAT_B8G8R8A8_UNORM; //DXGI_FORMAT_R8G8B8A8_UNORM;
     textureDesc.SampleDesc.Count   = 1;
-    textureDesc.Usage              = D3D11_USAGE_IMMUTABLE;
-    textureDesc.BindFlags          = D3D11_BIND_SHADER_RESOURCE;
+    textureDesc.Usage              = D3D11_USAGE_DEFAULT;
+    textureDesc.BindFlags          = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 
     D3D11_SUBRESOURCE_DATA textureSubresourceData = {};
-    textureSubresourceData.pSysMem = testTextureBytes;
-    textureSubresourceData.SysMemPitch = texBytesPerRow;
+    //textureSubresourceData.pSysMem = testTextureBytes;
+    //textureSubresourceData.SysMemPitch = texBytesPerRow;
 
     ID3D11Texture2D* texture = nullptr;
-    d3d11Device->CreateTexture2D(&textureDesc, &textureSubresourceData, &texture);
+    //d3d11Device->CreateTexture2D(&textureDesc, &textureSubresourceData, &texture);
+    d3d11Device->CreateTexture2D(&textureDesc, nullptr, &texture);
 
-    ID3D11ShaderResourceView* textureView;
-    d3d11Device->CreateShaderResourceView(texture, nullptr, &textureView);
+    ID3D11ShaderResourceView* textureSRV = nullptr;
+    d3d11Device->CreateShaderResourceView(texture, nullptr, &textureSRV);
 
-    free(testTextureBytes);
+    ID3D11RenderTargetView* textureRTV = nullptr;
+    d3d11Device->CreateRenderTargetView(texture, nullptr, &textureRTV);
+
+    //free(testTextureBytes);
 
     // Main Loop
     // #12_MainLoop
@@ -397,9 +421,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         // #22_AquireNextFrame
 		IDXGIResource* desktopResource = NULL;
 		DXGI_OUTDUPL_FRAME_INFO FrameInfo;
+		ID3D11Texture2D* sourceTexture = nullptr;
+		ID3D11Texture2D* targetTexture = texture;
 
-		HRESULT h = outputDup->AcquireNextFrame(100, &FrameInfo, &desktopResource);
-		if (h != S_OK)
+		HRESULT h = outputDup->AcquireNextFrame(50, &FrameInfo, &desktopResource);
+		if (FAILED(h))
 		{
 			OutputDebugStringA("Cannot Acquire Next Frame, Reason: ");
 			switch (h) {
@@ -422,6 +448,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
             char buff[256];
             //sprintf_s(buff, sizeof(buff), "mouseUpdateTime=%lld, PointerPosition.Visible=%d\n", m, v);
             //OutputDebugStringA(buff);
+
+            // #23_GrabDesktopImage
+			h = desktopResource->QueryInterface(IID_PPV_ARGS(&sourceTexture));
+            desktopResource->Release();
+            desktopResource = nullptr;
+
+			D3D11_TEXTURE2D_DESC srcTexDesc;
+			sourceTexture->GetDesc(&srcTexDesc);
+
+			g_deskWidth = srcTexDesc.Width;
+			g_deskHeight = srcTexDesc.Height;
+
+			sprintf_s(buff, sizeof(buff), "Desktop Width=%d, Height=%d\n", g_deskWidth, g_deskHeight);
+            OutputDebugStringA(buff);
+
+            bool bSameSize = (g_deskWidth == texWidth && g_deskHeight == texHeight);
+
+			if (bSameSize)
+            {
+				d3d11DeviceContext->CopyResource(targetTexture, sourceTexture);
+			}
+            else
+            {
+                OutputDebugStringA("Different Size!");
+            }
         }
         outputDup->ReleaseFrame();
 
@@ -443,7 +494,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         d3d11DeviceContext->VSSetShader(vertexShader, nullptr, 0);
         d3d11DeviceContext->PSSetShader(pixelShader, nullptr, 0);
 
-        d3d11DeviceContext->PSSetShaderResources(0, 1, &textureView);
+        d3d11DeviceContext->PSSetShaderResources(0, 1, &textureSRV);
         d3d11DeviceContext->PSSetSamplers(0, 1, &samplerState);
 
         d3d11DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
