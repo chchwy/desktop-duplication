@@ -39,6 +39,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpCmdLine*/, int /*nShowCmd*/)
 {
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
     // #00_OpenWindow
     HWND hwnd;
     {
@@ -57,7 +59,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 			return GetLastError();
 		}
 
-		RECT initialRect = { 0, 0, 1024, 768 };
+		RECT initialRect = { 0, 0, 1600, 900 };
 		AdjustWindowRectEx(&initialRect, WS_OVERLAPPEDWINDOW, FALSE, WS_EX_OVERLAPPEDWINDOW);
 		LONG initialWidth = initialRect.right - initialRect.left;
 		LONG initialHeight = initialRect.bottom - initialRect.top;
@@ -146,9 +148,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 
             // #DoubleCursor-DXGI
 			IDXGIOutput* output = nullptr;
+            IDXGIOutput5* output5Array[5];
 			IDXGIOutput5* output5 = nullptr;
 
-			if (dxgiAdapter->EnumOutputs(0, &output) != DXGI_ERROR_NOT_FOUND)
+            int numOutput = 0;
+			while (dxgiAdapter->EnumOutputs(numOutput, &output) != DXGI_ERROR_NOT_FOUND)
 			{
 				DXGI_OUTPUT_DESC desc;
 				output->GetDesc(&desc);
@@ -161,27 +165,40 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 				HRESULT h2 = output->QueryInterface(IID_PPV_ARGS(&output5));
                 assert(SUCCEEDED(h2));
 
+                output5Array[numOutput] = output5;
+
 				output->Release();
+                numOutput++;
 			}
 			
+            output5 = output5Array[0];
+            //output5 = output5Array[1];
+
             const DXGI_FORMAT formats[]{
                 DXGI_FORMAT_B8G8R8A8_UNORM,
                 DXGI_FORMAT_R8G8B8A8_UNORM,
                 DXGI_FORMAT_R10G10B10A2_UNORM,
             };
             //#21_CreateDuplicateOutput
-			HRESULT hr5 = output5->DuplicateOutput1(d3d11Device,
-                0,
-                ARRAYSIZE(formats),
-                formats,
-                &outputDup);
-
-            if (FAILED(hr5))
+            bool oldWay = true;
+            if (oldWay)
             {
-                HRESULT hError = hr5;
-                assert(false);
+                output5->DuplicateOutput(d3d11Device, &outputDup);
             }
+            else
+            {
+                HRESULT hr5 = output5->DuplicateOutput1(d3d11Device,
+                    0,
+                    ARRAYSIZE(formats),
+                    formats,
+                    &outputDup);
 
+                if (FAILED(hr5))
+                {
+                    HRESULT hError = hr5;
+                    assert(false);
+                }
+            }
 			output5->Release();
 
 			DXGI_OUTDUPL_DESC odd;
