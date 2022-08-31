@@ -363,8 +363,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     d3d11Device->CreateSamplerState(&samplerDesc, &samplerState);
 
     // Load Image
-    UINT texWidth = 1920;
-    UINT texHeight = 1080;
+    //3440, Height = 1440
+    UINT texWidth = 3440; // 1920;
+    UINT texHeight = 1440; // 1080;
     UINT texNumChannels = 0;
     int texForceNumChannels = 4;
     //unsigned char* testTextureBytes = stbi_load("testTexture.png", &texWidth, &texHeight,
@@ -388,20 +389,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     //textureSubresourceData.pSysMem = testTextureBytes;
     //textureSubresourceData.SysMemPitch = texBytesPerRow;
 
-    ID3D11Texture2D* texture = nullptr;
+    ID3D11Texture2D* textureSDR = nullptr;
+    ID3D11ShaderResourceView* textureSdrSRV = nullptr;
+    ID3D11RenderTargetView* textureSdrRTV = nullptr;
+
     //d3d11Device->CreateTexture2D(&textureDesc, &textureSubresourceData, &texture);
-    d3d11Device->CreateTexture2D(&textureDesc, nullptr, &texture);
+    d3d11Device->CreateTexture2D(&textureDesc, nullptr, &textureSDR);
+    d3d11Device->CreateShaderResourceView(textureSDR, nullptr, &textureSdrSRV);
+    d3d11Device->CreateRenderTargetView(textureSDR, nullptr, &textureSdrRTV);
 
-    ID3D11ShaderResourceView* textureSRV = nullptr;
-    d3d11Device->CreateShaderResourceView(texture, nullptr, &textureSRV);
 
-    ID3D11RenderTargetView* textureRTV = nullptr;
-    d3d11Device->CreateRenderTargetView(texture, nullptr, &textureRTV);
+	ID3D11Texture2D* textureHDR = nullptr;
+    ID3D11ShaderResourceView* textureHdrSRV = nullptr;
+    ID3D11RenderTargetView* textureHdrRTV = nullptr;
+
+    textureDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+    d3d11Device->CreateTexture2D(&textureDesc, nullptr, &textureHDR);
+	d3d11Device->CreateShaderResourceView(textureSDR, nullptr, &textureHdrSRV);
+	d3d11Device->CreateRenderTargetView(textureSDR, nullptr, &textureHdrRTV);
 
     //free(testTextureBytes);
 
     // Main Loop
     // #12_MainLoop
+
+    FILE* fp = nullptr;
+    fp = fopen("capture.log.txt", "w");
+
     bool isRunning = true;
     while(isRunning)
     {
@@ -439,7 +453,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 		IDXGIResource* desktopResource = NULL;
 		DXGI_OUTDUPL_FRAME_INFO FrameInfo;
 		ID3D11Texture2D* sourceTexture = nullptr;
-		ID3D11Texture2D* targetTexture = texture;
+		ID3D11Texture2D* targetTexture = nullptr;
+        ID3D11ShaderResourceView* targetSRV = nullptr;
 
 		HRESULT h = outputDup->AcquireNextFrame(50, &FrameInfo, &desktopResource);
 		if (FAILED(h))
@@ -477,18 +492,36 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 			g_deskWidth = srcTexDesc.Width;
 			g_deskHeight = srcTexDesc.Height;
 
-			sprintf_s(buff, sizeof(buff), "Desktop Width=%d, Height=%d\n", g_deskWidth, g_deskHeight);
-            OutputDebugStringA(buff);
+            UINT format = (UINT)srcTexDesc.Format;
+            sprintf_s(buff, sizeof(buff), "DesktopImage Width=%d, Height=%d Format=%d\n", g_deskWidth, g_deskHeight, format);
+			OutputDebugStringA(buff);
 
-            bool bSameSize = (g_deskWidth == texWidth && g_deskHeight == texHeight);
+            fprintf(fp, "%s", buff);
 
+            if (srcTexDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM)
+            {
+                targetTexture = textureSDR;
+                targetSRV = textureSdrSRV;
+            }
+            else if (srcTexDesc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
+            {
+                targetTexture = textureHDR;
+                targetSRV = textureHdrSRV;
+            }
+            else
+            {
+
+            }
+
+			const bool bSameSize = (srcTexDesc.Width == texWidth && srcTexDesc.Height == texHeight);
 			if (bSameSize)
             {
-				d3d11DeviceContext->CopyResource(targetTexture, sourceTexture);
+				//d3d11DeviceContext->CopyResource(targetTexture, sourceTexture);
 			}
             else
             {
                 OutputDebugStringA("Different Size!");
+                fprintf(fp, "Different Size! ");
             }
         }
         outputDup->ReleaseFrame();
@@ -496,6 +529,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         // #31_ClearRTV
         FLOAT backgroundColor[4] = { 0.1f, 0.2f, 0.6f, 1.0f };
         d3d11DeviceContext->ClearRenderTargetView(d3d11FrameBufferView, backgroundColor);
+
+        // #Draw Source to Target
 
         // #32_SetPipeline
         RECT winRect;
@@ -511,16 +546,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         d3d11DeviceContext->VSSetShader(vertexShader, nullptr, 0);
         d3d11DeviceContext->PSSetShader(pixelShader, nullptr, 0);
 
-        d3d11DeviceContext->PSSetShaderResources(0, 1, &textureSRV);
+        d3d11DeviceContext->PSSetShaderResources(0, 1, &targetSRV);
         d3d11DeviceContext->PSSetSamplers(0, 1, &samplerState);
 
         d3d11DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+        d3d11DeviceContext->Draw(numVerts, 0);
 
         //#33_DrawCall
+        d3d11DeviceContext->PSSetShaderResources(0, 1, &targetSRV);
+        d3d11DeviceContext->OMSetRenderTargets(1, &d3d11FrameBufferView, nullptr);
         d3d11DeviceContext->Draw(numVerts, 0);
 
         d3d11SwapChain->Present(1, 0);
     }
 
+    fclose(fp);
     return 0;
 }
