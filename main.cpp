@@ -363,9 +363,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     d3d11Device->CreateSamplerState(&samplerDesc, &samplerState);
 
     // Load Image
-    //3440, Height = 1440
-    UINT texWidth = 3440; // 1920;
-    UINT texHeight = 1440; // 1080;
+    //Luke's monitor Width = 3440, Height = 1440
+    UINT texWidth = 1920;
+    UINT texHeight = 1080;
     UINT texNumChannels = 0;
     int texForceNumChannels = 4;
     //unsigned char* testTextureBytes = stbi_load("testTexture.png", &texWidth, &texHeight,
@@ -395,18 +395,30 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 
     //d3d11Device->CreateTexture2D(&textureDesc, &textureSubresourceData, &texture);
     d3d11Device->CreateTexture2D(&textureDesc, nullptr, &textureSDR);
-    d3d11Device->CreateShaderResourceView(textureSDR, nullptr, &textureSdrSRV);
-    d3d11Device->CreateRenderTargetView(textureSDR, nullptr, &textureSdrRTV);
 
+    D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc = {};
+    shaderResourceViewDesc.Format = textureDesc.Format;
+    shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+    shaderResourceViewDesc.Texture2D.MipLevels = 1;
+    HRESULT h = d3d11Device->CreateShaderResourceView(textureSDR, &shaderResourceViewDesc, &textureSdrSRV);
+    assert(SUCCEEDED(h));
 
-	ID3D11Texture2D* textureHDR = nullptr;
-    ID3D11ShaderResourceView* textureHdrSRV = nullptr;
-    ID3D11RenderTargetView* textureHdrRTV = nullptr;
+    D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc = {};
+    renderTargetViewDesc.Format = textureDesc.Format;
+    renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    renderTargetViewDesc.Texture2D.MipSlice = 0;
+    h = d3d11Device->CreateRenderTargetView(textureSDR, &renderTargetViewDesc, &textureSdrRTV);
+    assert(SUCCEEDED(h));
 
-    textureDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-    d3d11Device->CreateTexture2D(&textureDesc, nullptr, &textureHDR);
-	d3d11Device->CreateShaderResourceView(textureSDR, nullptr, &textureHdrSRV);
-	d3d11Device->CreateRenderTargetView(textureSDR, nullptr, &textureHdrRTV);
+	//ID3D11Texture2D* textureHDR = nullptr;
+    //ID3D11ShaderResourceView* textureHdrSRV = nullptr;
+    //ID3D11RenderTargetView* textureHdrRTV = nullptr;
+
+    //textureDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+    //d3d11Device->CreateTexture2D(&textureDesc, nullptr, &textureHDR);
+	//d3d11Device->CreateShaderResourceView(textureSDR, nullptr, &textureHdrSRV);
+	//d3d11Device->CreateRenderTargetView(textureSDR, nullptr, &textureHdrRTV);
 
     //free(testTextureBytes);
 
@@ -455,6 +467,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 		ID3D11Texture2D* sourceTexture = nullptr;
 		ID3D11Texture2D* targetTexture = nullptr;
         ID3D11ShaderResourceView* targetSRV = nullptr;
+        ID3D11RenderTargetView* targetRTV = nullptr;
 
 		HRESULT h = outputDup->AcquireNextFrame(50, &FrameInfo, &desktopResource);
 		if (FAILED(h))
@@ -471,64 +484,73 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 				OutputDebugStringA("AcquireNextFrame failed.\n");
 				break;
 			}
+            continue;
+		}
+        
+        BOOL v = (FrameInfo.PointerPosition.Visible);
+        int64_t m = FrameInfo.LastMouseUpdateTime.QuadPart;
+
+        char buff[256];
+        //sprintf_s(buff, sizeof(buff), "mouseUpdateTime=%lld, PointerPosition.Visible=%d\n", m, v);
+        //OutputDebugStringA(buff);
+
+        // #23_GrabDesktopImage
+		h = desktopResource->QueryInterface(IID_PPV_ARGS(&sourceTexture));
+        desktopResource->Release();
+        desktopResource = nullptr;
+
+		D3D11_TEXTURE2D_DESC srcTexDesc;
+		sourceTexture->GetDesc(&srcTexDesc);
+
+		g_deskWidth = srcTexDesc.Width;
+		g_deskHeight = srcTexDesc.Height;
+
+        UINT format = (UINT)srcTexDesc.Format;
+        sprintf_s(buff, sizeof(buff), "DesktopImage Width=%d, Height=%d Format=%d\n", g_deskWidth, g_deskHeight, format);
+		OutputDebugStringA(buff);
+
+        fprintf(fp, "%s", buff);
+
+        //if (srcTexDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM)
+        
+        targetTexture = textureSDR;
+        targetSRV = textureSdrSRV;
+        targetRTV = textureSdrRTV;
+        
+        //else if (srcTexDesc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
+        //{
+        //    targetTexture = textureHDR;
+        //    targetSRV = textureHdrSRV;
+        //}
+
+
+        ID3D11ShaderResourceView* sourceSRV = nullptr;
+        if (sourceTexture)
+            d3d11Device->CreateShaderResourceView(sourceTexture, nullptr, &sourceSRV);
+        else
+            OutputDebugStringA("No source texture available!\n");
+
+        /*
+		const bool bSameSize = (srcTexDesc.Width == texWidth && srcTexDesc.Height == texHeight);
+        if (bSameSize)
+        {
+			d3d11DeviceContext->CopyResource(targetTexture, sourceTexture);
 		}
         else
         {
-            BOOL v = (FrameInfo.PointerPosition.Visible);
-            int64_t m = FrameInfo.LastMouseUpdateTime.QuadPart;
-
-            char buff[256];
-            //sprintf_s(buff, sizeof(buff), "mouseUpdateTime=%lld, PointerPosition.Visible=%d\n", m, v);
-            //OutputDebugStringA(buff);
-
-            // #23_GrabDesktopImage
-			h = desktopResource->QueryInterface(IID_PPV_ARGS(&sourceTexture));
-            desktopResource->Release();
-            desktopResource = nullptr;
-
-			D3D11_TEXTURE2D_DESC srcTexDesc;
-			sourceTexture->GetDesc(&srcTexDesc);
-
-			g_deskWidth = srcTexDesc.Width;
-			g_deskHeight = srcTexDesc.Height;
-
-            UINT format = (UINT)srcTexDesc.Format;
-            sprintf_s(buff, sizeof(buff), "DesktopImage Width=%d, Height=%d Format=%d\n", g_deskWidth, g_deskHeight, format);
-			OutputDebugStringA(buff);
-
-            fprintf(fp, "%s", buff);
-
-            if (srcTexDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM)
-            {
-                targetTexture = textureSDR;
-                targetSRV = textureSdrSRV;
-            }
-            else if (srcTexDesc.Format == DXGI_FORMAT_R10G10B10A2_UNORM)
-            {
-                targetTexture = textureHDR;
-                targetSRV = textureHdrSRV;
-            }
-            else
-            {
-
-            }
-
-			const bool bSameSize = (srcTexDesc.Width == texWidth && srcTexDesc.Height == texHeight);
-			if (bSameSize)
-            {
-				//d3d11DeviceContext->CopyResource(targetTexture, sourceTexture);
-			}
-            else
-            {
-                OutputDebugStringA("Different Size!");
-                fprintf(fp, "Different Size! ");
-            }
+            OutputDebugStringA("Different Size!");
+            fprintf(fp, "Different Size! ");
         }
+        */
+        
         outputDup->ReleaseFrame();
 
         // #31_ClearRTV
         FLOAT backgroundColor[4] = { 0.1f, 0.2f, 0.6f, 1.0f };
         d3d11DeviceContext->ClearRenderTargetView(d3d11FrameBufferView, backgroundColor);
+
+        FLOAT backgroundColor2[4] = { 1.f, 1.f, 0.0f, 1.0f };
+        d3d11DeviceContext->ClearRenderTargetView(targetRTV, backgroundColor2);
 
         // #Draw Source to Target
 
@@ -538,26 +560,36 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         D3D11_VIEWPORT viewport = { 0.0f, 0.0f, (FLOAT)(winRect.right - winRect.left), (FLOAT)(winRect.bottom - winRect.top), 0.0f, 1.0f };
         d3d11DeviceContext->RSSetViewports(1, &viewport);
 
-        d3d11DeviceContext->OMSetRenderTargets(1, &d3d11FrameBufferView, nullptr);
-
         d3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         d3d11DeviceContext->IASetInputLayout(inputLayout);
 
         d3d11DeviceContext->VSSetShader(vertexShader, nullptr, 0);
         d3d11DeviceContext->PSSetShader(pixelShader, nullptr, 0);
 
-        d3d11DeviceContext->PSSetShaderResources(0, 1, &targetSRV);
         d3d11DeviceContext->PSSetSamplers(0, 1, &samplerState);
+
+        d3d11DeviceContext->OMSetRenderTargets(1, &targetRTV, nullptr);
+        d3d11DeviceContext->PSSetShaderResources(0, 1, &sourceSRV);
 
         d3d11DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
         d3d11DeviceContext->Draw(numVerts, 0);
 
+        d3d11DeviceContext->OMSetRenderTargets(0, nullptr, nullptr);
+        d3d11DeviceContext->PSSetShaderResources(0, 0, nullptr);
+
         //#33_DrawCall
-        d3d11DeviceContext->PSSetShaderResources(0, 1, &targetSRV);
+
+        //d3d11DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+        //d3d11DeviceContext->RSSetViewports(1, &viewport);
+
         d3d11DeviceContext->OMSetRenderTargets(1, &d3d11FrameBufferView, nullptr);
+        d3d11DeviceContext->PSSetShaderResources(0, 1, &textureSdrSRV);
         d3d11DeviceContext->Draw(numVerts, 0);
 
         d3d11SwapChain->Present(1, 0);
+
+        sourceSRV->Release();
+        sourceTexture->Release();
     }
 
     fclose(fp);
