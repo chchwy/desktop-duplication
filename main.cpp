@@ -510,8 +510,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 
         fprintf(fp, "%s", buff);
 
-        //if (srcTexDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM)
-        
         targetTexture = textureSDR;
         targetSRV = textureSdrSRV;
         targetRTV = textureSdrRTV;
@@ -544,10 +542,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         }
         */
         
-        outputDup->ReleaseFrame();
-
-        // #31_ClearRTV
         
+        // #31_ClearRTV
         FLOAT backgroundColor2[4] = { 1.f, 0.f, 0.0f, 1.0f };
         d3d11DeviceContext->ClearRenderTargetView(targetRTV, backgroundColor2);
 
@@ -600,6 +596,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 
         sourceSRV->Release();
         sourceTexture->Release();
+
+        outputDup->ReleaseFrame();
     }
 
     fclose(fp);
