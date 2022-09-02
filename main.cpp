@@ -348,10 +348,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     // Create Sampler State
     // #10_SamplerState
     D3D11_SAMPLER_DESC samplerDesc = {};
-    samplerDesc.Filter         = D3D11_FILTER_MIN_MAG_MIP_POINT;
-    samplerDesc.AddressU       = D3D11_TEXTURE_ADDRESS_BORDER;
-    samplerDesc.AddressV       = D3D11_TEXTURE_ADDRESS_BORDER;
-    samplerDesc.AddressW       = D3D11_TEXTURE_ADDRESS_BORDER;
+    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
     samplerDesc.BorderColor[0] = 1.0f;
     samplerDesc.BorderColor[1] = 1.0f;
     samplerDesc.BorderColor[2] = 1.0f;
