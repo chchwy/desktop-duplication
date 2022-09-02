@@ -15,7 +15,7 @@ static UINT g_deskHeight = 0;
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
     LRESULT result = 0;
-    switch(msg)
+    switch (msg)
     {
         case WM_KEYDOWN:
         {
@@ -104,6 +104,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
             return GetLastError();
         }
         
+
         // Get 1.1 interface of D3D11 Device and Context
         hResult = baseDevice->QueryInterface(__uuidof(ID3D11Device1), (void**)&d3d11Device);
         assert(SUCCEEDED(hResult));
@@ -202,15 +203,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
                     assert(false);
                 }
             }
-			output5->Release();
+            output5->Release();
 
-			DXGI_OUTDUPL_DESC odd;
-			outputDup->GetDesc(&odd);
+            DXGI_OUTDUPL_DESC odd;
+            outputDup->GetDesc(&odd);
 
-			std::ostringstream sout;
-			sout << "Width :" << odd.ModeDesc.Width << "\n";
-			sout << "Height:" << odd.ModeDesc.Height << "\n";
-			OutputDebugStringA(sout.str().c_str());
+            std::ostringstream sout;
+            sout << "Width :" << odd.ModeDesc.Width << "\n";
+            sout << "Height:" << odd.ModeDesc.Height << "\n";
+            OutputDebugStringA(sout.str().c_str());
 
             DXGI_ADAPTER_DESC adapterDesc;
             dxgiAdapter->GetDesc(&adapterDesc);
@@ -262,12 +263,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     {
         ID3DBlob* shaderCompileErrorsBlob;
         HRESULT hResult = D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "vs_main", "vs_5_0", 0, 0, &vsBlob, &shaderCompileErrorsBlob);
-        if(FAILED(hResult))
+        if (FAILED(hResult))
         {
             const char* errorString = NULL;
-            if(hResult == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+            if (hResult == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
                 errorString = "Could not compile shader; file not found";
-            else if(shaderCompileErrorsBlob){
+            else if (shaderCompileErrorsBlob) {
                 errorString = (const char*)shaderCompileErrorsBlob->GetBufferPointer();
                 shaderCompileErrorsBlob->Release();
             }
@@ -286,12 +287,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         ID3DBlob* psBlob;
         ID3DBlob* shaderCompileErrorsBlob;
         HRESULT hResult = D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "ps_main", "ps_5_0", 0, 0, &psBlob, &shaderCompileErrorsBlob);
-        if(FAILED(hResult))
+        if (FAILED(hResult))
         {
             const char* errorString = NULL;
-            if(hResult == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+            if (hResult == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
                 errorString = "Could not compile shader; file not found";
-            else if(shaderCompileErrorsBlob){
+            else if (shaderCompileErrorsBlob) {
                 errorString = (const char*)shaderCompileErrorsBlob->GetBufferPointer();
                 shaderCompileErrorsBlob->Release();
             }
@@ -322,21 +323,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     // Create Vertex Buffer
     // #09_VertexBuffer
     ID3D11Buffer* vertexBuffer;
-	const float vertexData[] = { // x, y, u, v
-	    -1.0f,  1.0f, 0.f, 0.f,
-	     1.0f, -1.0f, 1.f, 1.f,
-	    -1.0f, -1.0f, 0.f, 1.f,
-	    -1.0f,  1.0f, 0.f, 0.f,
-	     1.0f,  1.0f, 1.f, 0.f,
-	     1.0f, -1.0f, 1.f, 1.f
-	};
-	const UINT stride = 4 * sizeof(float);
-	const UINT numVerts = sizeof(vertexData) / stride;
-	const UINT offset = 0;
+    const float vertexData[] = { // x, y, u, v
+        -1.0f,  1.0f, 0.f, 0.f,
+         1.0f, -1.0f, 1.f, 1.f,
+        -1.0f, -1.0f, 0.f, 1.f,
+        -1.0f,  1.0f, 0.f, 0.f,
+         1.0f,  1.0f, 1.f, 0.f,
+         1.0f, -1.0f, 1.f, 1.f
+    };
+    const UINT stride = 4 * sizeof(float);
+    const UINT numVerts = sizeof(vertexData) / stride;
+    const UINT offset = 0;
     {
-        D3D11_BUFFER_DESC vertexBufferDesc {};
+        D3D11_BUFFER_DESC vertexBufferDesc{};
         vertexBufferDesc.ByteWidth = sizeof(vertexData);
-        vertexBufferDesc.Usage     = D3D11_USAGE_IMMUTABLE;
+        vertexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
         vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 
         D3D11_SUBRESOURCE_DATA vertexSubresourceData = { vertexData };
@@ -395,6 +396,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     //d3d11Device->CreateTexture2D(&textureDesc, &textureSubresourceData, &texture);
     d3d11Device->CreateTexture2D(&textureDesc, nullptr, &textureSDR);
 
+    //free(testTextureBytes);
+
     D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc = {};
     shaderResourceViewDesc.Format = textureDesc.Format;
     shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
@@ -410,16 +413,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     h = d3d11Device->CreateRenderTargetView(textureSDR, &renderTargetViewDesc, &textureSdrRTV);
     assert(SUCCEEDED(h));
 
-	//ID3D11Texture2D* textureHDR = nullptr;
-    //ID3D11ShaderResourceView* textureHdrSRV = nullptr;
-    //ID3D11RenderTargetView* textureHdrRTV = nullptr;
-
-    //textureDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-    //d3d11Device->CreateTexture2D(&textureDesc, nullptr, &textureHDR);
-	//d3d11Device->CreateShaderResourceView(textureSDR, nullptr, &textureHdrSRV);
-	//d3d11Device->CreateRenderTargetView(textureSDR, nullptr, &textureHdrRTV);
-
-    //free(testTextureBytes);
 
     // Main Loop
     // #12_MainLoop
@@ -429,26 +422,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     assert(errorcode == 0);
 
     bool isRunning = true;
-    while(isRunning)
+    while (isRunning)
     {
         MSG msg = {};
-        while(PeekMessageW(&msg, 0, 0, 0, PM_REMOVE))
+        while (PeekMessageW(&msg, 0, 0, 0, PM_REMOVE))
         {
-            if(msg.message == WM_QUIT)
+            if (msg.message == WM_QUIT)
                 isRunning = false;
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
 
         // #13_ResizeEvent
-        if(global_windowDidResize)
+        if (global_windowDidResize)
         {
             d3d11DeviceContext->OMSetRenderTargets(0, 0, 0);
             d3d11FrameBufferView->Release();
 
             HRESULT res = d3d11SwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
             assert(SUCCEEDED(res));
-            
+
             ID3D11Texture2D* d3d11FrameBuffer;
             res = d3d11SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&d3d11FrameBuffer);
             assert(SUCCEEDED(res));
@@ -462,31 +455,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         }
 
         // #22_AquireNextFrame
-		IDXGIResource* desktopResource = NULL;
-		DXGI_OUTDUPL_FRAME_INFO FrameInfo;
-		ID3D11Texture2D* sourceTexture = nullptr;
-		ID3D11Texture2D* targetTexture = nullptr;
+        IDXGIResource* desktopResource = NULL;
+        DXGI_OUTDUPL_FRAME_INFO FrameInfo;
+        ID3D11Texture2D* sourceTexture = nullptr;
+        ID3D11Texture2D* targetTexture = nullptr;
         ID3D11ShaderResourceView* targetSRV = nullptr;
         ID3D11RenderTargetView* targetRTV = nullptr;
 
-		HRESULT h = outputDup->AcquireNextFrame(50, &FrameInfo, &desktopResource);
-		if (FAILED(h))
-		{
-			OutputDebugStringA("Cannot Acquire Next Frame, Reason: ");
-			switch (h) {
-			case DXGI_ERROR_WAIT_TIMEOUT:
-				OutputDebugStringA("AcquireNextFrame failed. DXGI_ERROR_WAIT_TIMEOUT\n");
-				break;
-			case DXGI_ERROR_ACCESS_LOST:
-				OutputDebugStringA("AcquireNextFrame failed. DXGI_ERROR_ACCESS_LOST\n");
-				break;
-			default:
-				OutputDebugStringA("AcquireNextFrame failed.\n");
-				break;
-			}
+        HRESULT h = outputDup->AcquireNextFrame(50, &FrameInfo, &desktopResource);
+        if (FAILED(h))
+        {
+            OutputDebugStringA("Cannot Acquire Next Frame, Reason: ");
+            switch (h) {
+            case DXGI_ERROR_WAIT_TIMEOUT:
+                OutputDebugStringA("AcquireNextFrame failed. DXGI_ERROR_WAIT_TIMEOUT\n");
+                break;
+            case DXGI_ERROR_ACCESS_LOST:
+                OutputDebugStringA("AcquireNextFrame failed. DXGI_ERROR_ACCESS_LOST\n");
+                break;
+            default:
+                OutputDebugStringA("AcquireNextFrame failed.\n");
+                break;
+            }
             continue;
-		}
-        
+        }
+
         BOOL v = (FrameInfo.PointerPosition.Visible);
         int64_t m = FrameInfo.LastMouseUpdateTime.QuadPart;
 
@@ -495,19 +488,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         //OutputDebugStringA(buff);
 
         // #23_GrabDesktopImage
-		h = desktopResource->QueryInterface(IID_PPV_ARGS(&sourceTexture));
+        h = desktopResource->QueryInterface(IID_PPV_ARGS(&sourceTexture));
         desktopResource->Release();
         desktopResource = nullptr;
 
-		D3D11_TEXTURE2D_DESC srcTexDesc;
-		sourceTexture->GetDesc(&srcTexDesc);
+        D3D11_TEXTURE2D_DESC srcTexDesc;
+        sourceTexture->GetDesc(&srcTexDesc);
 
-		g_deskWidth = srcTexDesc.Width;
-		g_deskHeight = srcTexDesc.Height;
+        g_deskWidth = srcTexDesc.Width;
+        g_deskHeight = srcTexDesc.Height;
 
         UINT format = (UINT)srcTexDesc.Format;
         sprintf_s(buff, sizeof(buff), "DesktopImage Width=%d, Height=%d Format=%d\n", g_deskWidth, g_deskHeight, format);
-		OutputDebugStringA(buff);
+        OutputDebugStringA(buff);
 
         fprintf(fp, "%s", buff);
 
@@ -518,11 +511,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         ID3D11ShaderResourceView* sourceSRV = nullptr;
         if (sourceTexture)
         {
-			D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-			srvDesc.Format = srcTexDesc.Format;
-			srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MostDetailedMip = 0;
-			srvDesc.Texture2D.MipLevels = 1;
+            D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+            srvDesc.Format = srcTexDesc.Format;
+            srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+            srvDesc.Texture2D.MostDetailedMip = 0;
+            srvDesc.Texture2D.MipLevels = 1;
 
             h = d3d11Device->CreateShaderResourceView(sourceTexture, &srvDesc, &sourceSRV);
             assert(SUCCEEDED(h));
@@ -531,19 +524,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
             OutputDebugStringA("No source texture available!\n");
 
         /*
-		const bool bSameSize = (srcTexDesc.Width == texWidth && srcTexDesc.Height == texHeight);
+        const bool bSameSize = (srcTexDesc.Width == texWidth && srcTexDesc.Height == texHeight);
         if (bSameSize)
         {
-			d3d11DeviceContext->CopyResource(targetTexture, sourceTexture);
-		}
+            d3d11DeviceContext->CopyResource(targetTexture, sourceTexture);
+        }
         else
         {
             OutputDebugStringA("Different Size!");
             fprintf(fp, "Different Size! ");
         }
         */
-        
-        
+
+
         // #31_ClearRTV
         FLOAT backgroundColor2[4] = { 1.f, 0.f, 0.0f, 1.0f };
         d3d11DeviceContext->ClearRenderTargetView(targetRTV, backgroundColor2);
@@ -551,7 +544,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         // #Draw Source to Target
 
         // #32_SetPipeline
-        
+
         D3D11_VIEWPORT viewport = { 0.0f, 0.0f, texWidth, texHeight, 0.0f, 1.0f };
         d3d11DeviceContext->RSSetViewports(1, &viewport);
 
@@ -573,12 +566,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         //d3d11DeviceContext->PSSetShaderResources(0, 0, nullptr);
 
         //#33_DrawCall
-		
+
         FLOAT backgroundColor[4] = { 0.1f, 0.2f, 0.6f, 1.0f };
-		d3d11DeviceContext->ClearRenderTargetView(d3d11FrameBufferView, backgroundColor);
+        d3d11DeviceContext->ClearRenderTargetView(d3d11FrameBufferView, backgroundColor);
 
         RECT winRect = {};
-		GetClientRect(hwnd, &winRect);
+        GetClientRect(hwnd, &winRect);
 
         viewport.Width = winRect.right - winRect.left;
         viewport.Height = winRect.bottom - winRect.top;
