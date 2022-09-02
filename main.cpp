@@ -6,7 +6,10 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define DEBUG_BUILD
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
+//#define DEBUG_BUILD
 
 static bool global_windowDidResize = false;
 static UINT g_deskWidth = 0;
@@ -364,8 +367,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
 
     // Load Image
     //Luke's monitor Width = 3440, Height = 1440
-    UINT texWidth = 1280;
-    UINT texHeight = 720;
+    UINT texWidth = 1920;
+    UINT texHeight = 1080;
     UINT texNumChannels = 0;
     int texForceNumChannels = 4;
     //unsigned char* testTextureBytes = stbi_load("testTexture.png", &texWidth, &texHeight,
@@ -380,7 +383,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     textureDesc.Height             = texHeight;
     textureDesc.MipLevels          = 1;
     textureDesc.ArraySize          = 1;
-    textureDesc.Format             = DXGI_FORMAT_B8G8R8A8_UNORM; //DXGI_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.Format             = DXGI_FORMAT_R8G8B8A8_UNORM;
     textureDesc.SampleDesc.Count   = 1;
     textureDesc.Usage              = D3D11_USAGE_DEFAULT;
     textureDesc.BindFlags          = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
@@ -413,6 +416,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
     h = d3d11Device->CreateRenderTargetView(textureSDR, &renderTargetViewDesc, &textureSdrRTV);
     assert(SUCCEEDED(h));
 
+    D3D11_TEXTURE2D_DESC outTexDesc = {};
+    outTexDesc.Width = texWidth;
+    outTexDesc.Height = texHeight;
+    outTexDesc.MipLevels = 1;
+    outTexDesc.ArraySize = 1;
+    outTexDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; //;
+    outTexDesc.SampleDesc.Count = 1;
+    outTexDesc.SampleDesc.Quality = 0;
+    outTexDesc.Usage = D3D11_USAGE_STAGING;
+    outTexDesc.BindFlags = 0;
+    outTexDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+    ID3D11Texture2D* outTexture = nullptr;
+    d3d11Device->CreateTexture2D(&outTexDesc, nullptr, &outTexture);
 
     // Main Loop
     // #12_MainLoop
@@ -583,13 +600,49 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR /*lpC
         d3d11DeviceContext->OMSetRenderTargets(1, &d3d11FrameBufferView, nullptr);
         d3d11DeviceContext->Draw(numVerts, 0);
 
-        d3d11SwapChain->Present(0, 0);
+        {
+            d3d11DeviceContext->CopyResource(outTexture, targetTexture);
+        
+            static unsigned char frameBuffer[1920 * 1080 * 4];
 
-		d3d11DeviceContext->OMSetRenderTargets(0, nullptr, nullptr);
-		d3d11DeviceContext->PSSetShaderResources(0, 0, nullptr);
+            D3D11_MAPPED_SUBRESOURCE mappedTex2D;
+            HRESULT h5 = d3d11DeviceContext->Map(outTexture, 0, D3D11_MAP_READ, 0, &mappedTex2D);
+            if (FAILED(h5)) {}
+            {
+                sprintf_s(buff, sizeof(buff), "DepthPitch=%d RowPitch=%d m_nWndWidth=%d,m_nWndHeight=%d\n",
+                    mappedTex2D.DepthPitch,
+                    mappedTex2D.RowPitch,
+                    textureDesc.Width,
+                    textureDesc.Height);
+
+                unsigned char* s = (unsigned char*)(mappedTex2D.pData);
+                unsigned char* d = frameBuffer;
+                int w = textureDesc.Width * 4;
+                for (int i = 0; i < textureDesc.Height; i++) {
+                    memcpy((BYTE*)d, (BYTE*)s, w);
+                    d += w;
+                    s += mappedTex2D.RowPitch;
+                }
+            }
+            d3d11DeviceContext->Unmap(outTexture, 0);
+
+
+            if (GetKeyState(VK_CONTROL) & 0x8000)
+            {
+                static int count = 0;
+                char namebuf[256];
+                sprintf_s(namebuf, sizeof(namebuf), "D:\\temp\\cap_%d.png", count);
+                int result = stbi_write_png(namebuf, textureDesc.Width, textureDesc.Height, 4, frameBuffer, textureDesc.Width * 4);
+                count++;
+                OutputDebugStringA("Out Image!\n");
+            }
+
+        }
 
         sourceSRV->Release();
         sourceTexture->Release();
+
+        d3d11SwapChain->Present(0, 0);
 
         outputDup->ReleaseFrame();
     }
